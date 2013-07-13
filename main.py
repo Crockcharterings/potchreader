@@ -16,19 +16,24 @@
 #
 import webapp2
 from lib import feedparser
+from model import PRFeedItem 
 
 class MainHandler(webapp2.RequestHandler):
     def get(self):
-        rawdata = """
-        <rss channel="2.0">
-        <channel>
-        <title>Sample feed</title>
-        </channel>
-        </rss>
-        """
-        d = feedparser.parse(rawdata)
-        self.response.write(d['feed']['title'])
+#        rawdata = """
+#        <rss channel="2.0">
+#        <channel>
+#        <title>Sample feed</title>
+#        </channel>
+#       </rss>
+#       """
+#       d = feedparser.parse(rawdata)
+#       self.response.write(d['feed']['title'])
         self.response.write('Hello world!')
+
+#   def post(self):
+#       url = self.request.get('url')
+        
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler)

@@ -6,12 +6,12 @@
 
 # import webapp2
 
-from goole.appengine.ext import ndb
+from google.appengine.ext import ndb
 
 class PRFeedItem(ndb.Model):
     """RSS Feed Item Model"""
     title = ndb.StringProperty(required=True)
-    link = ndb.LinkProperty(indexed=False)
+    link = ndb.StringProperty(indexed=False)
     description = ndb.TextProperty()
     pub_date = ndb.DateTimeProperty(auto_now_add=True)
     guid = ndb.StringProperty()
@@ -21,9 +21,9 @@ class PRFeedChannel(ndb.Model):
     """RSS Channel Item Model"""
     """ttl = time to live(cachable time in minutes)"""
     title = ndb.StringProperty(required=True)
-    link = ndb.LinkProperty(indexed=False, required=True)
+    link = ndb.StringProperty(indexed=False, required=True)
     description = ndb.TextProperty()
     pub_date = ndb.DateTimeProperty(required=True)
     last_build_date = ndb.DateTimeProperty(required=True)
     ttl = ndb.IntegerProperty(repeated=False)
-    items = ndb.LocalStructuredProperty(repeated=True)
+    items = ndb.StructuredProperty(PRFeedItem, repeated=True)
