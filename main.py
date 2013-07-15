@@ -34,6 +34,10 @@ def _set_entries(entries, channel):
 
     channel.put()
 
+def _get_entries(num_limit=10):
+    feeds_list = model.PRFeedItem.query().fetch(num_limit)
+
+
 class MainHandler(webapp2.RequestHandler):
     def get(self):
         self.response.write(d)
@@ -77,7 +81,7 @@ class ChannelHandler(webapp2.RequestHandler):
 
             channel.put()
 
-            rspn_msg['msg'] = 'Saved Successfully; Now the channel needs reloading.'
+            rspn_msg['msg'] = 'Saved Successfully; channels need reloading.'
         else:
             rspn_msg['msg'] = 'Channel already exists.'
 
@@ -96,7 +100,7 @@ class ChannelHandler(webapp2.RequestHandler):
                 }
 
         self.response.write(json.JSONEncoder(
-                                    ensure_ascii=False, encoding='utf8').encode(chs))
+                            ensure_ascii=False, encoding='utf8').encode(chs))
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
