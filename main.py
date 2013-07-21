@@ -5,9 +5,16 @@ import json
 from datetime import datetime
 import time
 
+import logging
+
 from lib import feedparser
 
 import model
+
+def _date_json_default(obj):
+    if isinstance(obj, datetime):
+        return int(time.mktime(obj.timetuple()))
+    return json.JSONEncoder.default(obj)
 
 def _get_feed_data(raw_url):
     data = feedparser.parse(raw_url)
@@ -18,16 +25,20 @@ def _set_entries(entries, channel):
         raise ValueError('No feed items.')
 
     for item in entries:
-        if channel.items.guid != item.id:
-            feed_item = PRFeedItem(
+        logging.debug(item)
+        if not hasattr(channel.items, 'guid'): 
+            _pd = item.published_parsed
+            _pub_date = datetime.fromtimestamp(time.mktime(_pd))
+            feed_item = model.PRFeedItem(
                     key         = model.PRFeedItem.feed_item_key(
-                                    channel.items.guid
+                                    item.link
+#                                   item.id
                                     ),
                     title       = item.title,
                     link        = item.link,
                     description = item.summary,
-                    pub_date    = item.published_parsed,
-                    guid        = item.id
+                    pub_date    = _pub_date,
+                    guid        = item.link
                     )
             item_key = feed_item.put()
             channel.items.append(feed_item)
@@ -35,12 +46,18 @@ def _set_entries(entries, channel):
     channel.put()
 
 def _get_entries(num_limit=10):
+    items = {}
     feeds_list = model.PRFeedItem.query().fetch(num_limit)
+    for item in feeds_list:
+        items[item.guid] = item.to_dict(exclude=['key'])
 
+    return json.JSONEncoder(ensure_ascii=False, encoding='utf8',
+                    default=_date_json_default).encode(items)
+    
 
 class MainHandler(webapp2.RequestHandler):
     def get(self):
-        self.response.write(d)
+        self.response.write(_get_entries())
 
 class ChannelHandler(webapp2.RequestHandler):
     def post(self):
@@ -54,7 +71,7 @@ class ChannelHandler(webapp2.RequestHandler):
                 'charset':'utf8'
                 }
 
-        if not feeddata.version:
+        if not hasattr(feeddata, 'version'):
             rspn_msg['msg'] = feeddata.debug_message
             self.response.write(json.JSONEncoder().encode(rspn_msg))
 
@@ -85,22 +102,25 @@ class ChannelHandler(webapp2.RequestHandler):
         else:
             rspn_msg['msg'] = 'Channel already exists.'
 
+        _set_entries(feeddata.entries, channel)
+
         self.response.write(json.JSONEncoder().encode(rspn_msg))
 
     def get(self, num_limit=10):
         chs = {}
         ch_list = model.PRFeedChannel.query().fetch(int(num_limit))
         for ch in ch_list:
-            chs[ch.title] = ch.to_dict(exclude=['key', 'rss_link',
-                                                'pub_date', 'last_build_date',
-                                                'ttl'])
+            chs[ch.title] = ch.to_dict(exclude=['key','rss_link','ttl','items'])
+
         self.response.content_type_params = {
                 'content-type':'application/json',
                 'charset':'utf8'
                 }
 
         self.response.write(json.JSONEncoder(
-                            ensure_ascii=False, encoding='utf8').encode(chs))
+                            ensure_ascii=False, encoding='utf8', 
+                            default=_date_json_default
+                            ).encode(chs))
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
