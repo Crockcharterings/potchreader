@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 
+import cgi
+import os
+import jinja2
 import webapp2
 import json
 from datetime import datetime
 import time
 
-import logging
-
 from lib import feedparser
 
 import model
+
+JINJA_ENVIRONMENT = jinja2.Environment(
+                    loader=jinja2.FileSystemLoader(os.path.dirname(__file__)),
+                    extensions=['jinja2.ext.autoescape'])
 
 def _date_json_default(obj):
     if isinstance(obj, datetime):
@@ -25,41 +30,43 @@ def _set_entries(entries, channel):
         raise ValueError('No feed items.')
 
     for item in entries:
-        logging.debug(item)
-        if not hasattr(channel.items, 'guid'): 
+        _item_id = item.id if hasattr(item, 'id') and item.id else item.link
+        if not hasattr(channel.items, 'guid') or channel.items.guid != _item_id:
             _pd = item.published_parsed
             _pub_date = datetime.fromtimestamp(time.mktime(_pd))
             feed_item = model.PRFeedItem(
                     key         = model.PRFeedItem.feed_item_key(
-                                    item.link
-#                                   item.id
+                                    _item_id
                                     ),
                     title       = item.title,
                     link        = item.link,
                     description = item.summary,
                     pub_date    = _pub_date,
-                    guid        = item.link
+                    guid        = _item_id
                     )
             item_key = feed_item.put()
             channel.items.append(feed_item)
-
-    channel.put()
+            channel.put()
 
 def _get_entries(num_limit=10):
     items = {}
-    feeds_list = model.PRFeedItem.query().fetch(num_limit)
+#   feeds_list = model.PRFeedItem.query().fetch(num_limit)
+    feeds_list = model.PRFeedItem.query_by_date(num_limit)
     for item in feeds_list:
         items[item.guid] = item.to_dict(exclude=['key'])
 
     return json.JSONEncoder(ensure_ascii=False, encoding='utf8',
                     default=_date_json_default).encode(items)
-    
 
 class MainHandler(webapp2.RequestHandler):
     def get(self):
         self.response.write(_get_entries())
 
-class ChannelHandler(webapp2.RequestHandler):
+class ChannelRegHandler(webapp2.RequestHandler):
+    def get(self):
+        template = JINJA_ENVIRONMENT.get_template('template/seturl.html')
+        self.response.write(template.render())
+
     def post(self):
         """This method handles RSS registration"""
         url = self.request.get('url')
@@ -98,7 +105,7 @@ class ChannelHandler(webapp2.RequestHandler):
 
             channel.put()
 
-            rspn_msg['msg'] = 'Saved Successfully; channels need reloading.'
+            rspn_msg['msg'] = 'Saved Successfully.'
         else:
             rspn_msg['msg'] = 'Channel already exists.'
 
@@ -106,6 +113,7 @@ class ChannelHandler(webapp2.RequestHandler):
 
         self.response.write(json.JSONEncoder().encode(rspn_msg))
 
+class ChannelHandler(webapp2.RequestHandler):
     def get(self, num_limit=10):
         chs = {}
         ch_list = model.PRFeedChannel.query().fetch(int(num_limit))
@@ -124,6 +132,6 @@ class ChannelHandler(webapp2.RequestHandler):
 
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
-    ('/channel', ChannelHandler),
+    ('/channel', ChannelRegHandler),
     ('/channel/(\d+)', ChannelHandler)
 ], debug=True)

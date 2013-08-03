@@ -21,6 +21,10 @@ class PRFeedItem(ndb.Model):
     def feed_item_key(cls, guid):
         return ndb.Key(cls, guid)
 
+    @classmethod
+    def query_by_date(cls, limit=10):
+        return cls.query().order(cls.pub_date).fetch(limit)
+
 class PRFeedChannel(ndb.Model):
     """RSS Channel Item Model"""
     """ttl = time to live(cachable time in minutes)"""

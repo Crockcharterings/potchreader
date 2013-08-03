@@ -9,13 +9,20 @@ handlers:
   static_files: favicon.ico
   upload: favicon\.ico
 
-- url: /seturl.html
-  static_files: seturl.html
-  upload: seturl.html
+- url: /template
+  static_dir: /template
+# upload: /template
+# application_readable: yes
+  
+#- url: /seturl.html  
+# static_files: seturl.html
+# upload: seturl.html
 
 - url: .*
   script: main.app
 
 libraries:
 - name: webapp2
+  version: latest
+- name: jinja2
   version: latest
